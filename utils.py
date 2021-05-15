@@ -6,12 +6,14 @@ import itertools
 import imageio
 import natsort
 from glob import glob
+import numpy as np
+import random
 
 def get_data_loader(batch_size):
     # MNIST Dataset
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(mean=(0.1307, ), std=(0.3081, ))])
+        transforms.Normalize(mean=(0.5, ), std=(0.5, ))])
 
     train_dataset = datasets.MNIST(root='./mnist_data/', train=True, transform=transform, download=True)
 
@@ -19,10 +21,11 @@ def get_data_loader(batch_size):
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     return train_loader
 
-def generate_images(epoch, path, fixed_noise, num_test_samples, netG, device, use_fixed=False):
-    z = torch.randn(num_test_samples, 100, 1, 1, device=device)
+def generate_images(epoch, path, fixed_noise, num_test_samples, netG, use_fixed=True):
+    netG.eval()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    z = torch.randn(num_test_samples, fixed_noise.shape[1], 1, 1, device=device)
     size_figure_grid = int(math.sqrt(num_test_samples))
-    title = None
   
     if use_fixed:
         generated_fake_images = netG(fixed_noise)
@@ -59,6 +62,25 @@ def save_gif(path, fps, fixed_noise=False):
     for image in images:
         gif.append(imageio.imread(image))
     imageio.mimsave(path+'animated.gif', gif, fps=fps)
+
+
+
+def smoothed_labels(batch_shape, lbl=1, max_smooth=0.2):
+    if lbl==1:
+        label = max_smooth * 2*(torch.rand(batch_shape)-0.5)+1
+    else:
+        label = max_smooth * torch.rand(batch_shape)
+    return label
+
+
+def set_all_seeds():
+    np.random.seed(42)
+    random.seed(42)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.manual_seed(42)
+    torch.cuda.manual_seed_all(42)
+    torch.set_printoptions(precision=10)
 
     
 
